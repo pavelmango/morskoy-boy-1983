@@ -132,6 +132,7 @@ def build_floppy_image(base_dir: pathlib.Path, out_path: pathlib.Path) -> None:
         ("INDEX", "HTM", base_dir / "index.html"),
         ("MORSKOY", "BAS", base_dir / "MORSKOY.BAS"),
         ("README", "MD", base_dir / "README.md"),
+        ("LICENSE", "MIT", base_dir / "LICENSE"),
     ]
 
     next_cluster = 2  # First data cluster in FAT12 (maps to sector 33)
