@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>МОРСКОЙ БОЙ — ПК-ДОС 1.04 (ОКБ «ИМПУЛЬС», 1983) // Релятивистский Перископ</title>
+<style>
+  :root {
+    --p31: #33ff66;
+    --p31-dim: #147a32;
+    --p31-dark: #051c0b;
+    --amber: #ffb000;
+    --red: #ff3333;
+    --cyan: #33ffff;
+  }
+  * { box-sizing: border-box; user-select: none; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: #020804;
+    color: var(--p31);
+    font-family: "Consolas", "Courier New", monospace;
+    overflow: hidden;
+  }
+  /* CRT Scanlines & Vignette */
+  body::after {
+    content: "";
+    position: fixed; inset: 0;
+    background:
+      linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.38) 50%),
+      radial-gradient(circle at center, transparent 55%, rgba(0, 0, 0, 0.85) 100%);
+    background-size: 100% 3px, 100% 100%;
+    pointer-events: none;
+    z-index: 50;
+  }
+  #app {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    height: 100vh;
+    padding: 8px 14px;
+    gap: 8px;
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid var(--p31-dim);
+    background: rgba(5, 28, 11, 0.8);
+    padding: 6px 12px;
+    font-size: 13px;
+    text-shadow: 0 0 6px var(--p31);
+  }
+  .badge {
+    background: var(--p31);
+    color: #020804;
+    font-weight: bold;
+    padding: 1px 6px;
+    margin-right: 8px;
+  }
+  main {
+    display: grid;
+    grid-template-columns: 1fr 330px;
+    gap: 10px;
+    min-height: 0;
+  }
+  #viewport-wrap {
+    position: relative;
+    border: 2px solid var(--p31);
+    background: #010602;
+    box-shadow: inset 0 0 40px rgba(51, 255, 102, 0.15), 0 0 12px rgba(51, 255, 102, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: crosshair;
+  }
+  #sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 12px;
+    overflow-y: auto;
+  }
+  .panel {
+    border: 1px solid var(--p31-dim);
+    background: rgba(4, 20, 8, 0.85);
+    padding: 8px 10px;
+  }
+  .panel h3 {
+    margin: 0 0 6px 0;
+    font-size: 12px;
+    color: var(--amber);
+    border-bottom: 1px dashed var(--p31-dim);
+    padding-bottom: 3px;
+    letter-spacing: 0.5px;
+  }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 3px 0;
+  }
+  .val { color: #fff; font-weight: bold; text-shadow: 0 0 5px var(--p31); }
+  .val-amber { color: var(--amber); font-weight: bold; text-shadow: 0 0 5px var(--amber); }
+  .val-cyan { color: var(--cyan); font-weight: bold; }
+  .controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  button {
+    background: #06230e;
+    color: var(--p31);
+    border: 1px solid var(--p31);
+    padding: 6px 8px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.1s;
+  }
+  button:hover {
+    background: var(--p31);
+    color: #020804;
+    box-shadow: 0 0 10px var(--p31);
+  }
+  button.fire-btn {
+    grid-column: span 2;
+    background: #2a0909;
+    color: #ff5555;
+    border-color: #ff4444;
+    font-size: 15px;
+    padding: 10px;
+    letter-spacing: 2px;
+  }
+  button.fire-btn:hover {
+    background: #ff3333;
+    color: #000;
+    box-shadow: 0 0 15px #ff3333;
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--amber);
+    cursor: pointer;
+  }
+  .formula-box {
+    background: #020c05;
+    border-left: 3px solid var(--amber);
+    padding: 6px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: #b8ffd0;
+  }
+  #log-box {
+    flex: 1;
+    font-size: 11px;
+    overflow-y: auto;
+    max-height: 165px;
+    line-height: 1.35;
+  }
+  .log-entry { margin-bottom: 3px; }
+  .log-hit { color: var(--amber); font-weight: bold; }
+  .log-miss { color: #88aa88; }
+  footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid var(--p31-dim);
+    background: rgba(5, 28, 11, 0.8);
+    padding: 4px 12px;
+    font-size: 11px;
+    color: #88ef9d;
+  }
+  #boot-overlay {
+    position: fixed;
+    inset: 0;
+    background: #010602;
+    z-index: 40;
+    padding: 36px;
+    font-size: 14px;
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="boot-overlay">
+  <div id="boot-text">
+    <div>==============================================================================</div>
+    <div>СПЕЦВЫЧИСЛИТЕЛЬ «ЭЛЕКТРОНИКА-КР» // ОПЕРАЦИОННАЯ СИСТЕМА ПК-ДОС ВЕРСИЯ 1.04</div>
+    <div>ОКБ «ИМПУЛЬС» — ЛАБОРАТОРИЯ РЕЛЯТИВИСТСКОЙ БАЛЛИСТИКИ И КОСМИЧЕСКОЙ СВЯЗИ (1983)</div>
+    <div>РЕКОНСТРУКЦИЯ АРХИВА: EUGEN VALUEV // РЕПОЗИТОРИЙ СОВЕРШЕННОЙ СОВМЕСТИМОСТИ</div>
+    <div>==============================================================================</div>
+    <br>
+    <div>ТЕСТ ОЗУ КР565РУ5 ......................... 64 КБАЙТ ИСПРАВНО</div>
+    <div>СОПРОЦЕССОР ЛОРЕНЦ-Метрики КР1810ВМ87-Р ... ПОДКЛЮЧЕН (γ = 1/√(1 - β²))</div>
+    <div>КАЛИБРОВКА ОПТИЧЕСКОГО ПЕРИСКОПА ПЗ-83 .... УСПЕШНО</div>
+    <div>СИНТЕЗАТОР ЗВУКА ВИ53 ..................... ГОТОВ</div>
+    <br>
+    <div style="color: var(--amber);">[ФИЗИЧЕСКАЯ СПРАВКА ДЛЯ КОМАНДИРА ПЕРИСКОПА]</div>
+    <div>В данной модели скорость света в среде приведена к масштабу полигона (c_eff).</div>
+    <div>1. ЗАДЕРЖКА СВЕТОВОГО СИГНАЛА (АБЕРРАЦИЯ): Вы видите корабль в точке, где он</div>
+    <div>   испустил фотоны Δt_света = R / c назад. Реальное положение цели смещено вперёд!</div>
+    <div>2. РЕЛЯТИВИСТСКАЯ ДИЛЯЦИЯ ВРЕМЕНИ ТОРПЕДЫ «ШКВАЛ-Р»:</div>
+    <div>   Собственное время боевого таймера торпеды течёт медленнее лабораторного времени:</div>
+    <div>   Δτ_торп = Δt_лаб · √(1 - (v_торп / c)²) = Δt_лаб / γ_торп.</div>
+    <div>   При взрывателе, рассчитанном на собственное время τ, торпеда в системе</div>
+    <div>   координат океана проходит в γ раз большее расстояние или требует поправки</div>
+    <div>   угла упреждения Δφ!</div>
+    <br>
+    <div style="color: #fff;">УПРАВЛЕНИЕ:</div>
+    <div>• [МЫШЬ] или [← / →] — Поворот перископа по горизонту</div>
+    <div>• [ПРОБЕЛ] или [ЛКМ] — ПУСК РЕЛЯТИВИСТСКОЙ ТОРПЕДЫ (боекомплект: 10 торпед в серии)</div>
+    <div>• [V] — Вкл/Выкл векторный компьютер упреждения «ЛОРЕНЦ-1»</div>
+    <div>• [1 / 2 / 3] — Переключение коэффициента релятивизма полигона (c_eff)</div>
+  </div>
+  <div>
+    <button id="start-btn" style="font-size:16px; padding:12px 24px;">[ ВВЕСТИ ДИСКЕТУ A:\MORSKOY.COM — НАЧАТЬ БОЕВОЕ ДЕЖУРСТВО ]</button>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div>
+      <span class="badge">ПК-ДОС 1.04</span>
+      <strong>МОРСКОЙ БОЙ: РЕЛЯТИВИСТСКИЙ ПЕРИСКОП (1983)</strong>
+    </div>
+    <div id="top-telemetry">
+      СЕРИЯ: <span class="val" id="ui-round">1</span> |
+      ТОРПЕДЫ: <span class="val-amber" id="ui-ammo">10</span> |
+      ПОТОПЛЕНО: <span class="val" id="ui-hits">0</span> |
+      ОЧКИ: <span class="val-amber" id="ui-score">0000</span>
+    </div>
+  </header>
+
+  <main>
+    <div id="viewport-wrap">
+      <canvas id="periscope"></canvas>
+    </div>
+
+    <aside id="sidebar">
+      <div class="panel">
+        <h3>БЦВМ «ЛОРЕНЦ-1» // ТЕЛЕМЕТРИЯ</h3>
+        <div class="stat-row"><span>Азимут перископа (φ):</span><span class="val" id="tel-az">0.0°</span></div>
+        <div class="stat-row"><span>Скорость торпеды (β_t = v_t/c):</span><span class="val-amber" id="tel-beta-t">0.75 c</span></div>
+        <div class="stat-row"><span>Фактор Лоренца торпеды (γ_t):</span><span class="val-cyan" id="tel-gamma-t">1.512</span></div>
+        <div class="stat-row"><span>Замедление времени (dτ/dt):</span><span class="val" id="tel-dilation">0.661x</span></div>
+        <div class="stat-row"><span>Поправка упреждения (Δφ):</span><span class="val-amber" id="tel-lead">+0.0°</span></div>
+      </div>
+
+      <div class="panel">
+        <h3>НАСТРОЙКА РЕЛЯТИВИЗМА</h3>
+        <label>Скорость торпеды β_t = v_t / c: <span id="lbl-vt" class="val-amber">0.75c</span></label>
+        <input type="range" id="rng-vt" min="0.35" max="0.95" step="0.05" value="0.75">
+
+        <label style="display:block; margin-top:6px;">Масштаб скорости света c_eff: <span id="lbl-c" class="val-cyan">180 узл.</span></label>
+        <input type="range" id="rng-c" min="110" max="320" step="10" value="180">
+
+        <div class="controls-grid">
+          <button id="btn-assist">ПРИЦЕЛ ЛОРЕНЦА: ВКЛ</button>
+          <button id="btn-sound">ЗВУК ВИ53: ВКЛ</button>
+          <button id="btn-reset">НОВАЯ СЕРИЯ (10 ТОРП.)</button>
+          <button id="btn-color">ЛЮМИНОФОР: ЗЕЛ/ЯНТ</button>
+          <button class="fire-btn" id="btn-fire">ПУСК ТОРПЕДЫ [ПРОБЕЛ]</button>
+        </div>
+      </div>
+
+      <div class="panel formula-box">
+        <strong>Закон движения в перископе:</strong><br>
+        • Видимый азимут φ_вид(t) запаздывает на Δt_св = D / c.<br>
+        • Часы торпеды: τ = t / γ, где γ = 1 / √(1 − β²).<br>
+        • Доплеровское смещение силуэта: λ/λ₀ = √((1+β_r)/(1−β_r)).
+      </div>
+
+      <div class="panel" style="flex:1; display:flex; flex-direction:column;">
+        <h3>ЖУРНАЛ СТРЕЛЬБ ПК-ДОС</h3>
+        <div id="log-box"></div>
+      </div>
+    </aside>
+  </main>
+
+  <footer>
+    <div>A:\&gt; MORSKOY.COM /RELATIVITY /P31_CRT // ОРИГИНАЛЬНЫЙ АРТЕФАКТ ЕВГЕНИЯ ВАЛУЕВА</div>
+    <div>КЛАВИШИ: [←][→] ИЛИ МЫШЬ — НАВОДКА | [ПРОБЕЛ] — ПУСК | [V] — КОМПЬЮТЕР ЛОРЕНЦА</div>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('periscope');
+  const ctx = canvas.getContext('2d');
+
+  // Audio Synthesizer (Soviet KR580VI53 Programmable Interval Timer emulation)
+  let soundEnabled = true;
+  let audioCtx = null;
+  function ensureAudio() {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) audioCtx = new AC();
+    }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  function beep(freq = 800, dur = 0.08, type = 'square', slide = 0) {
+    if (!soundEnabled) return;
+    ensureAudio();
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, now);
+    if (slide !== 0) {
+      osc.frequency.exponentialRampToValueAtTime(Math.max(40, freq + slide), now + dur);
+    }
+    gain.gain.setValueAtTime(0.09, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + dur);
+  }
+
+  function explosionSound() {
+    if (!soundEnabled) return;
+    ensureAudio();
+    if (!audioCtx) return;
+    const dur = 0.65;
+    const bufferSize = audioCtx.sampleRate * dur;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioCtx.sampleRate * 0.18));
+    }
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(420, audioCtx.currentTime);
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0.32, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+    noise.start();
+    beep(180, 0.35, 'sawtooth', -120);
+  }
+
+  // Game State & Relativistic Parameters
+  const state = {
+    started: false,
+    amberMode: false,
+    assistEnabled: true,
+    azimuth: 0,          // Periscope horizontal angle in degrees (-50 to +50)
+    cEff: 180,           // Effective speed of light in polygon units/sec
+    betaTorpedo: 0.75,   // v_torpedo / c
+    ammo: 10,
+    hits: 0,
+    score: 0,
+    round: 1,
+    ships: [],
+    torpedoes: [],
+    explosions: [],
+    stars: [],
+    keys: {}
+  };
+
+  // Ship classes modeled after the 1970s-80s Soviet "Morskoy Boy" arcade silhouettes
+  const SHIP_CLASSES = [
+    { name: 'КАТЕР «МОЛНИЯ»', width: 42, height: 14, speedFrac: 0.36, points: 300, dist: 340, stack: 1 },
+    { name: 'ЭСМИНЕЦ ПР. 956', width: 68, height: 20, speedFrac: 0.27, points: 200, dist: 380, stack: 2 },
+    { name: 'КРЕЙСЕР «СЛАВА»', width: 92, height: 26, speedFrac: 0.20, points: 150, dist: 420, stack: 3 },
+    { name: 'АВИАНОСЕЦ', width: 118, height: 30, speedFrac: 0.14, points: 100, dist: 460, stack: 2 }
+  ];
+
+  function gammaFromBeta(beta) {
+    const b = Math.min(0.99, Math.abs(beta));
+    return 1 / Math.sqrt(1 - b * b);
+  }
+
+  function logEvent(msg, cls = '') {
+    const box = document.getElementById('log-box');
+    const div = document.createElement('div');
+    div.className = 'log-entry ' + cls;
+    const t = new Date().toTimeString().slice(0, 8);
+    div.textContent = `[${t}] ${msg}`;
+    box.prepend(div);
+  }
+
+  function spawnShips() {
+    state.ships = [];
+    const lanes = [340, 390, 440, 480];
+    for (let i = 0; i < 4; i++) {
+      const tmpl = SHIP_CLASSES[i % SHIP_CLASSES.length];
+      const dir = (i % 2 === 0) ? 1 : -1;
+      const startAngle = (Math.random() * 70 - 35);
+      state.ships.push({
+        id: i + 1,
+        tmpl,
+        dist: lanes[i], // Radial distance in polygon units
+        trueAzimuth: startAngle, // True lab-frame azimuth in degrees
+        dir,
+        betaShip: tmpl.speedFrac * (0.9 + 0.2 * Math.random()),
+        sinking: 0
+      });
+    }
+  }
+
+  // Apparent (retarded-time) azimuth of a ship due to finite speed of light c_eff
+  function getApparentAzimuth(ship) {
+    const lightTravelTime = ship.dist / state.cEff;
+    const angularSpeedDegPerSec = (ship.dir * ship.betaShip * state.cEff / ship.dist) * (180 / Math.PI);
+    // Where the ship WAS when photons left it
+    return ship.trueAzimuth - angularSpeedDegPerSec * lightTravelTime;
+  }
+
+  // Calculate exact relativistic intercept lead angle from Apparent Azimuth
+  function computeRelativisticLead(ship) {
+    const vTorp = state.betaTorpedo * state.cEff;
+    const tFlightLab = ship.dist / vTorp;
+    const lightTravelTime = ship.dist / state.cEff;
+    const angularSpeedDegPerSec = (ship.dir * ship.betaShip * state.cEff / ship.dist) * (180 / Math.PI);
+    // Total angular shift between where we SEE the ship now and where it WILL BE at torpedo impact:
+    // Δφ = ω * (Δt_light + Δt_torpedo_lab)
+    const deltaPhi = angularSpeedDegPerSec * (lightTravelTime + tFlightLab);
+    const gammaTorp = gammaFromBeta(state.betaTorpedo);
+    const properTimeTorp = tFlightLab / gammaTorp;
+    return {
+      apparentAz: ship.trueAzimuth - angularSpeedDegPerSec * lightTravelTime,
+      interceptAz: ship.trueAzimuth + angularSpeedDegPerSec * tFlightLab,
+      deltaPhi,
+      tFlightLab,
+      properTimeTorp,
+      gammaTorp
+    };
+  }
+
+  function fireTorpedo() {
+    if (!state.started) return;
+    if (state.ammo <= 0) {
+      beep(220, 0.15, 'sawtooth');
+      logEvent('БОЕКОМПЛЕКТ ИСЧЕРПАН! Нажмите «НОВАЯ СЕРИЯ».', 'log-miss');
+      return;
+    }
+    // Limit to 1 active torpedo on screen, like the classic Soviet arcade cabinet
+    if (state.torpedoes.length > 0) {
+      beep(310, 0.06, 'square');
+      return;
+    }
+
+    state.ammo--;
+    const gamma = gammaFromBeta(state.betaTorpedo);
+    const vTorp = state.betaTorpedo * state.cEff;
+
+    state.torpedoes.push({
+      azimuth: state.azimuth,
+      dist: 20,
+      vLab: vTorp,
+      beta: state.betaTorpedo,
+      gamma,
+      tLab: 0,
+      tauProper: 0,
+      trail: []
+    });
+
+    beep(520, 0.12, 'square', -240);
+    updateHUD();
+  }
+
+  function updateHUD() {
+    const gammaT = gammaFromBeta(state.betaTorpedo);
+    document.getElementById('ui-round').textContent = state.round;
+    document.getElementById('ui-ammo').textContent = state.ammo;
+    document.getElementById('ui-hits').textContent = state.hits;
+    document.getElementById('ui-score').textContent = String(state.score).padStart(4, '0');
+
+    document.getElementById('tel-az').textContent = `${state.azimuth >= 0 ? '+' : ''}${state.azimuth.toFixed(1)}°`;
+    document.getElementById('tel-beta-t').textContent = `${state.betaTorpedo.toFixed(2)} c`;
+    document.getElementById('tel-gamma-t').textContent = gammaT.toFixed(3);
+    document.getElementById('tel-dilation').textContent = `${(1 / gammaT).toFixed(3)}x`;
+
+    // Find closest ship to reticle to display lead angle
+    let closest = null;
+    let bestDiff = 999;
+    for (const s of state.ships) {
+      if (s.sinking > 0) continue;
+      const appAz = getApparentAzimuth(s);
+      const diff = Math.abs(appAz - state.azimuth);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        closest = s;
+      }
+    }
+    if (closest) {
+      const lead = computeRelativisticLead(closest);
+      document.getElementById('tel-lead').textContent = `${lead.deltaPhi >= 0 ? '+' : ''}${lead.deltaPhi.toFixed(1)}° (τ=${lead.properTimeTorp.toFixed(2)}с)`;
+    }
+  }
+
+  function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = Math.max(640, Math.floor(rect.width));
+    canvas.height = Math.max(400, Math.floor(rect.height));
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // Initialize stars on horizon
+  for (let i = 0; i < 60; i++) {
+    state.stars.push({
+      az: Math.random() * 140 - 70,
+      yFrac: Math.random() * 0.42 + 0.04,
+      blink: Math.random() * Math.PI * 2
+    });
+  }
+
+  spawnShips();
+  logEvent('ПК-ДОС 1.04 загружен. Перископ ПЗ-83 на боевом дежурстве.');
+
+  // Input listeners
+  window.addEventListener('keydown', (e) => {
+    state.keys[e.code] = true;
+    if (e.code === 'Space') {
+      e.preventDefault();
+      fireTorpedo();
+    } else if (e.code === 'KeyV') {
+      state.assistEnabled = !state.assistEnabled;
+      document.getElementById('btn-assist').textContent = `ПРИЦЕЛ ЛОРЕНЦА: ${state.assistEnabled ? 'ВКЛ' : 'ВЫКЛ'}`;
+      beep(660, 0.05);
+    } else if (e.code === 'Digit1') {
+      setCEff(120);
+    } else if (e.code === 'Digit2') {
+      setCEff(180);
+    } else if (e.code === 'Digit3') {
+      setCEff(260);
+    }
+  });
+  window.addEventListener('keyup', (e) => { state.keys[e.code] = false; });
+
+  canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const normX = (e.clientX - rect.left) / rect.width; // 0..1
+    state.azimuth = (normX - 0.5) * 90; // -45° to +45°
+  });
+  canvas.addEventListener('mousedown', (e) => {
+    if (e.button === 0) fireTorpedo();
+  });
+
+  function setCEff(val) {
+    state.cEff = val;
+    document.getElementById('rng-c').value = val;
+    document.getElementById('lbl-c').textContent = `${val} узл.`;
+    beep(540, 0.05);
+  }
+
+  document.getElementById('rng-vt').addEventListener('input', (e) => {
+    state.betaTorpedo = parseFloat(e.target.value);
+    document.getElementById('lbl-vt').textContent = `${state.betaTorpedo.toFixed(2)}c`;
+    updateHUD();
+  });
+  document.getElementById('rng-c').addEventListener('input', (e) => {
+    setCEff(parseFloat(e.target.value));
+    updateHUD();
+  });
+  document.getElementById('btn-assist').addEventListener('click', () => {
+    state.assistEnabled = !state.assistEnabled;
+    document.getElementById('btn-assist').textContent = `ПРИЦЕЛ ЛОРЕНЦА: ${state.assistEnabled ? 'ВКЛ' : 'ВЫКЛ'}`;
+    beep(660, 0.05);
+  });
+  document.getElementById('btn-sound').addEventListener('click', () => {
+    soundEnabled = !soundEnabled;
+    document.getElementById('btn-sound').textContent = `ЗВУК ВИ53: ${soundEnabled ? 'ВКЛ' : 'ВЫКЛ'}`;
+    if (soundEnabled) beep(880, 0.06);
+  });
+  document.getElementById('btn-color').addEventListener('click', () => {
+    state.amberMode = !state.amberMode;
+    document.documentElement.style.setProperty('--p31', state.amberMode ? '#ffb000' : '#33ff66');
+    document.documentElement.style.setProperty('--p31-dim', state.amberMode ? '#805500' : '#147a32');
+    beep(720, 0.05);
+  });
+  document.getElementById('btn-reset').addEventListener('click', () => {
+    state.ammo = 10;
+    state.round++;
+    state.torpedoes = [];
+    spawnShips();
+    beep(440, 0.08);
+    setTimeout(() => beep(660, 0.1), 90);
+    logEvent(`НОВАЯ СЕРИЯ №${state.round}. Загружено 10 релятивистских торпед.`);
+    updateHUD();
+  });
+  document.getElementById('btn-fire').addEventListener('click', fireTorpedo);
+  document.getElementById('start-btn').addEventListener('click', () => {
+    document.getElementById('boot-overlay').classList.add('hidden');
+    state.started = true;
+    ensureAudio();
+    beep(440, 0.08);
+    setTimeout(() => beep(880, 0.14), 90);
+  });
+
+  // Projection helper: maps world azimuth (-55..+55) to screen X relative to periscope center
+  function azToScreenX(az, width) {
+    // Field of view in periscope is 75 degrees wide
+    const fov = 75;
+    const relAz = az - state.azimuth;
+    return width * 0.5 + (relAz / fov) * width;
+  }
+
+  function distToScreenY(dist, horizonY, height) {
+    // dist goes from 20 (near periscope) to 500 (near horizon)
+    const norm = Math.min(1, Math.max(0, (dist - 20) / 480));
+    // Perspective foreshortening
+    const curved = Math.pow(norm, 0.42);
+    return height * 0.92 - curved * (height * 0.92 - horizonY);
+  }
+
+  let lastTime = performance.now();
+  function tick(now) {
+    const dt = Math.min(0.05, (now - lastTime) / 1000);
+    lastTime = now;
+
+    if (state.started) {
+      // Keyboard rotation
+      const turnSpeed = 34;
+      if (state.keys['ArrowLeft'] || state.keys['KeyA']) {
+        state.azimuth = Math.max(-45, state.azimuth - turnSpeed * dt);
+      }
+      if (state.keys['ArrowRight'] || state.keys['KeyD']) {
+        state.azimuth = Math.min(45, state.azimuth + turnSpeed * dt);
+      }
+
+      // Update ships in Lab Frame
+      for (const s of state.ships) {
+        if (s.sinking > 0) {
+          s.sinking += dt;
+          if (s.sinking > 1.8) {
+            // Respawn ship at opposite edge
+            s.sinking = 0;
+            s.dir = Math.random() < 0.5 ? 1 : -1;
+            s.trueAzimuth = -s.dir * 48;
+          }
+          continue;
+        }
+        const omegaDeg = (s.dir * s.betaShip * state.cEff / s.dist) * (180 / Math.PI);
+        s.trueAzimuth += omegaDeg * dt;
+        if (s.trueAzimuth > 54) s.trueAzimuth = -54;
+        if (s.trueAzimuth < -54) s.trueAzimuth = 54;
+      }
+
+      // Update torpedoes (Lab Time dt vs Proper Time d_tau = dt / gamma)
+      for (let i = state.torpedoes.length - 1; i >= 0; i--) {
+        const torp = state.torpedoes[i];
+        torp.tLab += dt;
+        torp.tauProper += dt / torp.gamma;
+        torp.dist += torp.vLab * dt;
+        torp.trail.push({ az: torp.azimuth, dist: torp.dist });
+        if (torp.trail.length > 26) torp.trail.shift();
+
+        // Check collision with ships at their TRUE lab position when torpedo reaches ship.dist
+        let hitShip = null;
+        for (const s of state.ships) {
+          if (s.sinking > 0) continue;
+          if (Math.abs(torp.dist - s.dist) < 12) {
+            // Angular width of ship in degrees (Lorentz-contracted!)
+            const gammaShip = gammaFromBeta(s.betaShip);
+            const contractedWidth = s.tmpl.width / gammaShip;
+            const halfAngleDeg = Math.max(1.8, (contractedWidth * 0.5 / s.dist) * (180 / Math.PI) * 3.2);
+            if (Math.abs(torp.azimuth - s.trueAzimuth) <= halfAngleDeg) {
+              hitShip = s;
+              break;
+            }
+          }
+        }
+
+        if (hitShip) {
+          hitShip.sinking = 0.01;
+          state.hits++;
+          const bonus = Math.round(hitShip.tmpl.points * torp.gamma);
+          state.score += bonus;
+          state.explosions.push({
+            az: hitShip.trueAzimuth,
+            dist: hitShip.dist,
+            age: 0
+          });
+          explosionSound();
+          logEvent(
+            `ПОПАДАНИЕ! ${hitShip.tmpl.name} | t_лаб=${torp.tLab.toFixed(2)}с, τ_торп=${torp.tauProper.toFixed(2)}с (γ=${torp.gamma.toFixed(2)}) +${bonus}`,
+            'log-hit'
+          );
+          state.torpedoes.splice(i, 1);
+        } else if (torp.dist > 510) {
+          beep(190, 0.12, 'sine');
+          logEvent(
+            `ПРОМАХ по азимуту ${torp.azimuth.toFixed(1)}° (t_лаб=${torp.tLab.toFixed(2)}с, τ_собств=${torp.tauProper.toFixed(2)}с). Учтите релятивистское запаздывание света!`,
+            'log-miss'
+          );
+          state.torpedoes.splice(i, 1);
+        }
+      }
+
+      // Update explosions
+      for (let i = state.explosions.length - 1; i >= 0; i--) {
+        state.explosions[i].age += dt;
+        if (state.explosions[i].age > 1.5) state.explosions.splice(i, 1);
+      }
+
+      updateHUD();
+    }
+
+    render(now / 1000);
+    requestAnimationFrame(tick);
+  }
+
+  function render(tSec) {
+    const w = canvas.width;
+    const h = canvas.height;
+    const horizonY = Math.floor(h * 0.44);
+    const mainColor = state.amberMode ? '#ffb000' : '#33ff66';
+    const dimColor = state.amberMode ? '#664400' : '#115524';
+
+    ctx.fillStyle = '#010602';
+    ctx.fillRect(0, 0, w, h);
+
+    // Stars
+    for (const st of state.stars) {
+      const sx = azToScreenX(st.az, w);
+      if (sx < 0 || sx > w) continue;
+      const sy = st.yFrac * horizonY;
+      const alpha = 0.35 + 0.35 * Math.sin(tSec * 2 + st.blink);
+      ctx.fillStyle = `rgba(180, 255, 200, ${alpha.toFixed(2)})`;
+      ctx.fillRect(sx, sy, 2, 2);
+    }
+
+    // Horizon Line & Sea Grid
+    ctx.strokeStyle = mainColor;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, horizonY);
+    ctx.lineTo(w, horizonY);
+    ctx.stroke();
+
+    // Sea perspective waves
+    ctx.strokeStyle = dimColor;
+    ctx.lineWidth = 1;
+    for (let d = 60; d <= 480; d += 60) {
+      const sy = distToScreenY(d, horizonY, h);
+      ctx.beginPath();
+      ctx.setLineDash([8, 14]);
+      ctx.moveTo(0, sy);
+      ctx.lineTo(w, sy);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Degree ticks along horizon
+    ctx.fillStyle = mainColor;
+    ctx.font = '11px Consolas, monospace';
+    for (let deg = -60; deg <= 60; deg += 5) {
+      const sx = azToScreenX(deg, w);
+      if (sx < 20 || sx > w - 20) continue;
+      const tickH = (deg % 10 === 0) ? 8 : 4;
+      ctx.beginPath();
+      ctx.moveTo(sx, horizonY - tickH);
+      ctx.lineTo(sx, horizonY + tickH);
+      ctx.strokeStyle = mainColor;
+      ctx.stroke();
+      if (deg % 10 === 0) {
+        ctx.fillText(`${deg > 0 ? '+' : ''}${deg}°`, sx - 12, horizonY - 12);
+      }
+    }
+
+    // Draw Ships (Apparent Retarded-Time Silhouette vs Lorentz Ghost Assist)
+    for (const s of state.ships) {
+      const lead = computeRelativisticLead(s);
+      const sy = distToScreenY(s.dist, horizonY, h);
+      const appX = azToScreenX(lead.apparentAz, w);
+      const trueX = azToScreenX(s.trueAzimuth, w);
+      const intX = azToScreenX(lead.interceptAz, w);
+
+      const gammaShip = gammaFromBeta(s.betaShip);
+      const wContr = s.tmpl.width / gammaShip;
+      const sh = s.tmpl.height;
+
+      // 1. If Lorentz Computer Assist is ON, draw ghost of True Position & Relativistic Lead Target
+      if (state.assistEnabled && s.sinking === 0) {
+        // Dashed vector from Apparent (photon-delayed) to Intercept (relativistic torpedo impact)
+        ctx.strokeStyle = 'rgba(255, 176, 0, 0.55)';
+        ctx.setLineDash([3, 4]);
+        ctx.beginPath();
+        ctx.moveTo(appX, sy - sh * 0.5);
+        ctx.lineTo(intX, sy - sh * 0.5);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Intercept lead diamond
+        ctx.strokeStyle = '#ffb000';
+        ctx.beginPath();
+        ctx.moveTo(intX, sy - sh - 10);
+        ctx.lineTo(intX + 7, sy - sh - 3);
+        ctx.lineTo(intX, sy - sh + 4);
+        ctx.lineTo(intX - 7, sy - sh - 3);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fillStyle = '#ffb000';
+        ctx.font = '10px Consolas, monospace';
+        ctx.fillText(`Δφ${lead.deltaPhi >= 0 ? '+' : ''}${lead.deltaPhi.toFixed(1)}°`, intX - 18, sy - sh - 14);
+      }
+
+      // 2. Draw Apparent Ship Silhouette (where light arrives at the periscope now)
+      ctx.save();
+      ctx.translate(appX, sy);
+      if (s.sinking > 0) {
+        ctx.translate(0, s.sinking * 18);
+        ctx.rotate((s.dir * s.sinking) * 0.25);
+      }
+
+      // Relativistic Doppler tint indicator on hull outline
+      ctx.strokeStyle = mainColor;
+      ctx.fillStyle = '#041f0b';
+      ctx.lineWidth = 1.6;
+
+      // Hull
+      ctx.beginPath();
+      ctx.moveTo(-wContr * 0.5, 0);
+      ctx.lineTo(wContr * 0.5, 0);
+      ctx.lineTo(wContr * 0.42 * s.dir + wContr * 0.2, -sh * 0.45);
+      ctx.lineTo(-wContr * 0.42, -sh * 0.45);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Superstructure / stacks
+      for (let st = 0; st < s.tmpl.stack; st++) {
+        const sxOff = (st - (s.tmpl.stack - 1) * 0.5) * (wContr * 0.22);
+        ctx.strokeRect(sxOff - 5, -sh * 0.9, 10, sh * 0.45);
+      }
+
+      // Label velocity β
+      ctx.fillStyle = mainColor;
+      ctx.font = '10px Consolas, monospace';
+      ctx.fillText(`β=${s.betaShip.toFixed(2)}c`, -wContr * 0.4, 12);
+      ctx.restore();
+    }
+
+    // Draw Active Torpedoes with Dual Clocks (Lab t vs Proper τ)
+    for (const torp of state.torpedoes) {
+      // Wake trail
+      ctx.strokeStyle = mainColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < torp.trail.length; i++) {
+        const pt = torp.trail[i];
+        const tx = azToScreenX(pt.az, w);
+        const ty = distToScreenY(pt.dist, horizonY, h);
+        if (i === 0) ctx.moveTo(tx, ty);
+        else ctx.lineTo(tx, ty);
+      }
+      ctx.stroke();
+
+      const headX = azToScreenX(torp.azimuth, w);
+      const headY = distToScreenY(torp.dist, horizonY, h);
+      ctx.fillStyle = '#ffb000';
+      ctx.beginPath();
+      ctx.arc(headX, headY, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Relativistic time dilation telemetry next to torpedo
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '11px Consolas, monospace';
+      ctx.fillText(`t_лаб: ${torp.tLab.toFixed(2)}с`, headX + 10, headY - 6);
+      ctx.fillStyle = '#33ffff';
+      ctx.fillText(`τ_соб: ${torp.tauProper.toFixed(2)}с (γ=${torp.gamma.toFixed(2)})`, headX + 10, headY + 8);
+    }
+
+    // Draw Explosions (Classic Soviet arcade glowing flash)
+    for (const ex of state.explosions) {
+      const exX = azToScreenX(ex.az, w);
+      const exY = distToScreenY(ex.dist, horizonY, h);
+      const r = 14 + ex.age * 45;
+      const alpha = Math.max(0, 1 - ex.age / 1.5);
+      ctx.strokeStyle = `rgba(255, 180, 40, ${alpha.toFixed(2)})`;
+      ctx.lineWidth = 2.5;
+      for (let k = 0; k < 8; k++) {
+        const ang = (k / 8) * Math.PI * 2 + ex.age * 2;
+        ctx.beginPath();
+        ctx.moveTo(exX, exY);
+        ctx.lineTo(exX + Math.cos(ang) * r, exY + Math.sin(ang) * r * 0.6);
+        ctx.stroke();
+      }
+    }
+
+    // Periscope Optical Reticle & Circular Mask
+    const cx = w * 0.5;
+    const cy = h * 0.5;
+    const radius = Math.min(w, h) * 0.46;
+
+    // Reticle hairlines
+    ctx.strokeStyle = mainColor;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(cx - radius, horizonY);
+    ctx.lineTo(cx + radius, horizonY);
+    ctx.moveTo(cx, cy - radius);
+    ctx.lineTo(cx, cy + radius);
+    ctx.stroke();
+
+    // Stadia rangefinder markings on vertical crosshair
+    for (let m = -4; m <= 4; m++) {
+      if (m === 0) continue;
+      const my = horizonY + m * 28;
+      ctx.beginPath();
+      ctx.moveTo(cx - 8, my);
+      ctx.lineTo(cx + 8, my);
+      ctx.stroke();
+    }
+
+    // Outer Periscope Bezel Ring
+    ctx.strokeStyle = mainColor;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Darken outside periscope circle slightly for authentic optical tube look
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2, true);
+    ctx.fillStyle = 'rgba(1, 5, 2, 0.76)';
+    ctx.fill();
+    ctx.restore();
+
+    // Top-left inside-viewport status stamp
+    ctx.fillStyle = mainColor;
+    ctx.font = '12px Consolas, monospace';
+    ctx.fillText(`ПЕРИСКОП ПЗ-83 // АЗИМУТ: ${state.azimuth >= 0 ? '+' : ''}${state.azimuth.toFixed(1)}°`, 16, 24);
+    ctx.fillStyle = '#ffb000';
+    ctx.fillText(`РЕЛЯТИВИСТСКАЯ ПОПРАВКА: γ = ${gammaFromBeta(state.betaTorpedo).toFixed(3)} (v_т = ${state.betaTorpedo.toFixed(2)}c)`, 16, 42);
+  }
+
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
