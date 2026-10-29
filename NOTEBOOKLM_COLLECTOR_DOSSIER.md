@@ -56,3 +56,4 @@ Copyright (c) 2026 [COLLECTOR PATRON / ARCHIVE STEWARD NAME HERE] (Sovereign Arc
 - Hand-assembles 16-bit x86 machine code at physical memory address `0x7C3E`:
   `FC 31 C0 8E D8 BE ... AC 84 C0 74 09 B4 0E BB 0A 00 CD 10 EB F1 30 E4 CD 16 CD 19`
 - Packs `INDEX.HTM`, `MORSKOY.BAS`, `README.MD`, and `LICENSE.MIT` into clusters starting at Sector 33 with DOS epoch timestamp `1983-10-28 12:00:00`.
+
